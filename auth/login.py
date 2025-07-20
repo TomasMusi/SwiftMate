@@ -15,6 +15,22 @@ from datetime import datetime
 # Google permissions (scopes)
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
+# Function to list messages from Gmail
+def list_messages(service, max_results=10):
+    results = service.users().messages().list(userId='me', maxResults=max_results).execute()
+    messages = results.get('messages', [])
+
+    emails = []
+    for msg in messages:
+        msg_detail = service.users().messages().get(userId='me', id=msg['id']).execute() # Fetching message details
+        headers = msg_detail.get('payload', {}).get('headers', []) # Extracting headers
+        subject = next((h['value'] for h in headers if h['name'] == 'Subject'), "(No Subject)") # Extracting subject
+        sender = next((h['value'] for h in headers if h['name'] == 'From'), "(No Sender)") # Extracting sender
+        snippet = msg_detail.get('snippet', '') # Extracting snippet
+        emails.append((subject, sender, snippet)) # Appending to emails list
+    
+    return emails
+
 
 def get_db_connection():
     """Establish a connection to the MySQL database."""
@@ -78,17 +94,39 @@ def login_with_google():
         profile = service.users().getProfile(userId="me").execute()
         email = profile["emailAddress"]
 
-         # Save token to database
+        # Save token to database
         save_user_token(email, creds)
 
-        # Open the menu
+        # fetch messages from Gmail
+        messages = list_messages(service)
+
+
+        # GUI: Show messages
         menu_root = tk.Tk()
-        menu_root.title("SwiftMate - Authentication Menu")
-        menu_root.geometry("600x400")
+        menu_root.title("SwiftMate - Inbox")
+        menu_root.geometry("700x500")
         menu_root.configure(bg="white")
 
-        label = tk.Label(menu_root, text=f"Welcome, {email}!", font=("Arial", 18), bg="white")
-        label.pack(pady=50)
+        title_label = tk.Label(menu_root, text=f"Inbox for {email}", font=("Helvetica", 16, "bold"), bg="white", fg="#333")
+        title_label.pack(pady=(20, 10))
+
+        # Frame for text + scrollbar
+        frame = tk.Frame(menu_root)
+        frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        scrollbar = tk.Scrollbar(frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        text_area = tk.Text(frame, yscrollcommand=scrollbar.set, wrap=tk.WORD, font=("Helvetica", 12))
+        text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_area.yview)
+
+        for i, (subject, sender, snippet) in enumerate(messages, start=1):
+            text_area.insert(tk.END, f"{i}. 📩 Subject: {subject}\n")
+            text_area.insert(tk.END, f"   👤 From: {sender}\n")
+            text_area.insert(tk.END, f"   ✏️ Snippet: {snippet}\n\n")
+
+        text_area.config(state=tk.DISABLED)  # Make read-only
 
         menu_root.mainloop()
 

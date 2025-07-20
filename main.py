@@ -3,6 +3,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import auth.login    # Importing the login module
 from dotenv import load_dotenv
+import menu.menu  # Importing the menu module
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -58,6 +59,12 @@ def login_action():
     root.destroy()  # Close the main window
     auth.login.login_with_google()  # Call the open_menu function from the login module
 
+def testing_button_action():
+    print("Testing button clicked!")
+    root.destroy()  # Close the main window
+    menu.menu.create_main_window()  # Call the open_menu function from the menu module
+
+
 # Login Button
 login_button = tk.Button(
     root,
@@ -71,6 +78,20 @@ login_button = tk.Button(
     command=login_action,
 )
 login_button.pack()
+
+# Testing Button
+testing_button = tk.Button(
+    root,
+    text="Testing",
+    font=("Helvetica", 14),
+    bg="#2a5dab",
+    fg="white",
+    activebackground="#31a1d4",
+    padx=20,
+    pady=10,
+    command=testing_button_action,
+)
+testing_button.pack()
 
 # Start GUI
 root.mainloop()
