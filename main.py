@@ -2,7 +2,9 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 import auth.login    # Importing the login module
+from dotenv import load_dotenv
 
+load_dotenv()  # Load environment variables from .env file
 
 # Function to get half the screen size
 def get_half_screen_size(window):
@@ -54,7 +56,7 @@ subtitle_label.pack(pady=(0, 40))
 def login_action():
     print("Login button clicked!")
     root.destroy()  # Close the main window
-    auth.login.open_menu()  # Call the open_menu function from the login module
+    auth.login.login_with_google()  # Call the open_menu function from the login module
 
 # Login Button
 login_button = tk.Button(

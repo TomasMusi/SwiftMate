@@ -13,6 +13,11 @@ venv/
 .DS_Store
 Thumbs.db
 
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+credentials.json
+
 # Logs
 *.log
 
