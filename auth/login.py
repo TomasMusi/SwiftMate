@@ -1,5 +1,6 @@
 # Imports 
-import tkinter as tk # Importing tkinter for GUI
+import tkinter as tk
+import webbrowser # Importing tkinter for GUI
 from PIL import Image, ImageTk
 
 import os
@@ -42,7 +43,7 @@ def save_user_token(email, credentials):
 
     # Prepare the credentials for storage
     query = """
-        INSERT INTO users (email, access_token, refresh_token, token_expiry, scopes)
+        INSERT INTO Users (email, access_token, refresh_token, token_expiry, scopes)
         VALUES (%s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
             access_token = VALUES(access_token),
@@ -66,30 +67,32 @@ def save_user_token(email, credentials):
 # Login via Google and store user token
 def login_with_google():
     try:
-        # Open Google OAuth login
+        # Load the OAuth flow
         flow = InstalledAppFlow.from_client_secrets_file("auth/credentials.json", SCOPES)
+
+        # This will open the browser and wait for login (best for desktop apps)
         creds = flow.run_local_server(port=0)
 
-        # Get Gmail address of logged-in user
+        # Use credentials to access Gmail
         service = build("gmail", "v1", credentials=creds)
         profile = service.users().getProfile(userId="me").execute()
         email = profile["emailAddress"]
 
+         # Save token to database
+        save_user_token(email, creds)
+
+        # Open the menu
+        menu_root = tk.Tk()
+        menu_root.title("SwiftMate - Authentication Menu")
+        menu_root.geometry("600x400")
+        menu_root.configure(bg="white")
+
+        label = tk.Label(menu_root, text=f"Welcome, {email}!", font=("Arial", 18), bg="white")
+        label.pack(pady=50)
+
+        menu_root.mainloop()
 
     except Exception as e:
-        print(f"Error during Google login: {e}")
+        print(f"❌ Error during Google login: {e}")
         return
 
-    # Save to database securely
-    save_user_token(email, creds)
-
-    # Open the menu
-    menu_root = tk.Tk()
-    menu_root.title("SwiftMate - Authentication Menu")
-    menu_root.geometry("600x400")
-    menu_root.configure(bg="white")
-
-    label = tk.Label(menu_root, text="Welcome to SwiftMate Authentication Menu!", font=("Arial", 18), bg="white")
-    label.pack(pady=50)
-
-    menu_root.mainloop()
