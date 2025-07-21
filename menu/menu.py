@@ -1,10 +1,13 @@
+from unicodedata import name
 from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QVBoxLayout,
                                  QHBoxLayout, QLineEdit, QFrame, QListWidget, QListWidgetItem)
 from PySide6.QtGui import QFont, QColor, QPalette
 from PySide6.QtCore import Qt
 import sys
+import re # For regex operations
 
-def create_main_window():
+# GUI of the main window
+def create_main_window(emails, label_counts):
     app = QApplication(sys.argv)
     window = QWidget()
     window.setWindowTitle("SwiftMate - Gmail Clone")
@@ -18,38 +21,84 @@ def create_main_window():
     # --- Sidebar ---
     sidebar_layout = QVBoxLayout()
     sidebar_widget = QWidget()
-    sidebar_widget.setStyleSheet("background-color: #f6f9ff")
+    sidebar_widget.setStyleSheet("background-color: #f6f9ff;")
     sidebar_widget.setFixedWidth(260)
 
-    gmail_logo = QLabel("\U0001F4E7 Gmail")
-    gmail_logo.setFont(QFont("Helvetica", 16, QFont.Bold))
+    # Gmail Logo
+    gmail_logo = QLabel("📧 Gmail")
+    gmail_logo.setFont(QFont("Helvetica", 18, QFont.Bold))
+    gmail_logo.setContentsMargins(12, 0, 0, 0)  # left margin
     sidebar_layout.addWidget(gmail_logo)
+    sidebar_layout.addSpacing(10)
 
-    compose_btn = QPushButton("\u270D\ufe0f Compose")
-    compose_btn.setFont(BOLD)
-    compose_btn.setStyleSheet("background-color: #bae6fd; padding: 10px; border-radius: 10px;")
+    # Compose Button
+    compose_btn = QPushButton("🖊️  Compose")
+    compose_btn.setFont(QFont("Helvetica", 12, QFont.Bold))
+    compose_btn.setStyleSheet("""
+        QPushButton {
+            background-color: #c2e7ff;
+            padding: 10px;
+            border-radius: 16px;
+            font-weight: bold;
+            margin-left: 12px;
+            margin-right: 12px;
+        }
+    """)
     sidebar_layout.addWidget(compose_btn)
+    sidebar_layout.addSpacing(10)
 
+    # Folder Items (Inbox, Starred, etc.)
     folder_items = [
-        ("\U0001F4E5", "Inbox", "4,256"),
-        ("\u2B50", "Starred", ""),
-        ("\U0001F552", "Snoozed", ""),
-        ("\U0001F4E4", "Sent", ""),
-        ("\u270F", "Draft", "42"),
-        ("\u25BE", "More", "")
+    ("📥", "Inbox", str(label_counts.get("INBOX", "")), True),
+    ("⭐", "Starred", str(label_counts.get("STARRED", "")), False),
+    ("⏰", "Snoozed", str(label_counts.get("SNOOZED", "")), False),
+    ("📤", "Sent", str(label_counts.get("SENT", "")), False),
+    ("📝", "Drafts", str(label_counts.get("DRAFT", "")), False),
+    ("▾", "More", "", False),
     ]
 
-    for icon, name, count in folder_items:
-        label = QLabel(f"{icon} {name} {f'({count})' if count else ''}")
-        label.setFont(FONT)
-        sidebar_layout.addWidget(label)
+    for icon, name, count, is_active in folder_items:
+        row = QHBoxLayout()
+        row.setContentsMargins(12, 6, 12, 6)  # Left margin
+        row.setSpacing(2)
 
+        combined_label = QLabel(f"{icon}&nbsp;&nbsp;&nbsp;&nbsp;<b>{name}</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {count if count else ''}")
+        combined_label.setFont(QFont("Helvetica", 12))
+        combined_label.setTextFormat(Qt.RichText)
+
+        # Highlight background if active
+        bg_widget = QWidget()
+        bg_layout = QHBoxLayout(bg_widget)
+        bg_layout.setContentsMargins(0, 0, 0, 0)
+        bg_layout.addLayout(row)
+
+        if is_active:
+            bg_widget.setStyleSheet("""
+                background-color: #d2e3fc;
+                border-radius: 20px;
+            """)
+        else:
+            bg_widget.setStyleSheet("")
+
+        row.addWidget(combined_label)
+        sidebar_layout.addWidget(bg_widget)
+
+    # Labels Section
     sidebar_layout.addSpacing(20)
     label_header = QLabel("Labels")
-    label_header.setFont(BOLD)
+    label_header.setFont(QFont("Helvetica", 12, QFont.Bold))
+    label_header.setContentsMargins(12, 0, 0, 0)
     sidebar_layout.addWidget(label_header)
-    sidebar_layout.addWidget(QLabel("\U0001F3F7️ Important"))
-    sidebar_layout.addWidget(QLabel("➕ Add Label"))
+
+    important_label = QLabel("🏷️ Important")
+    important_label.setFont(QFont("Helvetica", 12))
+    important_label.setContentsMargins(20, 0, 0, 0)
+    sidebar_layout.addWidget(important_label)
+
+    add_label = QLabel("➕ Add Label")
+    add_label.setFont(QFont("Helvetica", 12))
+    add_label.setContentsMargins(20, 0, 0, 0)
+    sidebar_layout.addWidget(add_label)
 
     sidebar_widget.setLayout(sidebar_layout)
 
@@ -136,60 +185,69 @@ def create_main_window():
     tabs_container.setFixedHeight(40) # <-- Height of the tabs (Primary, Promotions, Social)
     main_layout.addWidget(tabs_container)
 
-    # Emails List
-    emails = [
-        ("PW Skills", "Join Our Live Class on JavaScript Fundamentals📊", "07:00"),
-        ("Cuvette", "Job Guarantee course Program", "05:12"),
-        ("Geeks", "This Is Exactly What You're Looking For!", "03:31"),
-        ("LinkedIn", "See Monindra's and other people's connections", "5 Nov")
-    ]
+    for sender, subject, snippet in emails:
+        # Limit snippet length
+        preview = snippet[:50] + "..." if len(snippet) > 50 else snippet
 
-    for sender, subject, time in emails:
+        # Clean up subject for displaying
+        clean_subject = re.sub(r'<.*?>', '', subject).strip()
+
         row = QHBoxLayout()
-        row.setContentsMargins(8, 4, 8, 4)
-        row.setSpacing(0)
+        row.setContentsMargins(8, 2, 8, 2)
+        row.setSpacing(6)
 
-
-        # Checkbox and star placeholder (can add icons later)
-        checkbox = QLabel("☐")  # Or use a QCheckBox
+        # Checkbox and star
+        checkbox = QLabel("☐")
         checkbox.setFixedWidth(20)
         star = QLabel("☆")
         star.setFixedWidth(20)
         row.addWidget(checkbox)
         row.addWidget(star)
 
-        # Sender
+        # Subject (bold) / From who it is
+        subject_label = QLabel(clean_subject)
+        subject_label.setFont(BOLD)
+        subject_label.setStyleSheet("color: #202124")
+        subject_label.setFixedWidth(250)  # Adjust as needed
+        row.addWidget(subject_label)
+
+        # Sender (bold) / About what it is
         sender_label = QLabel(sender)
         sender_label.setFont(BOLD)
-        sender_label.setFixedWidth(120)
+        sender_label.setFixedWidth(180)
         row.addWidget(sender_label)
 
-        # Subject + preview text
-        subject_label = QLabel(subject + " - Lorem ipsum dolor sit amet, consectetur adipiscing...")
-        subject_label.setFont(FONT)
-        subject_label.setStyleSheet("color: #202124")
-        row.addWidget(subject_label, 1)
 
-        # Time
-        time_label = QLabel(time)
+
+        # Snippet (gray)
+        snippet_label = QLabel(preview)
+        snippet_label.setFont(FONT)
+        snippet_label.setStyleSheet("color: gray")
+        snippet_label.setWordWrap(False)
+        row.addWidget(snippet_label, 1)  # Stretch remaining space
+
+        # Optional time placeholder
+        time_label = QLabel("")
         time_label.setFont(SMALL)
         time_label.setStyleSheet("color: gray")
         time_label.setFixedWidth(60)
         row.addWidget(time_label)
 
+        # Wrap in a QWidget
         row_widget = QWidget()
         row_widget.setLayout(row)
         row_widget.setFixedHeight(30)
+        row_widget.setMaximumWidth(int(window.width() * 0.9))  # 90% width of main window
         row_widget.setStyleSheet("""
-    QWidget {
-        margin: 0px;
-        padding: 0px;
-    }
-    QWidget:hover {
-        background-color: #f5f5f5;
-    }
-""")
-        
+            QWidget {
+                margin: 0px;
+                padding: 0px;
+            }
+            QWidget:hover {
+                background-color: #f5f5f5;
+            }
+            """)
+
         main_layout.addWidget(row_widget)
 
     # --- Combine Sidebar and Main Area ---
@@ -204,5 +262,22 @@ def create_main_window():
     window.show()
     sys.exit(app.exec())
 
+
+# "Only run this block if this file is being run directly, not when it’s being imported from another file." (Its now for me, so thats why there is this comment)
 if __name__ == '__main__':
-    create_main_window()
+
+    emails = [
+        ("Alice", "Meeting Reminder", "Don't forget our meeting at 10am tomorrow."),
+        ("Bob", "Lunch?", "Are you free for lunch this week?"),
+        ("Carol", "Project Update", "Here's the latest update on the project. Please review."),
+    ]
+
+    dummy_label_counts = {
+        "INBOX": 3,
+        "STARRED": 1,
+        "SNOOZED": 0,
+        "SENT": 5,
+        "DRAFT": 2
+    }
+
+    create_main_window(emails, dummy_label_counts)

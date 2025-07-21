@@ -1,8 +1,8 @@
 # Imports 
-import tkinter as tk
 import webbrowser # Importing tkinter for GUI
 from PIL import Image, ImageTk
-
+import menu.menu as menu
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QPushButton
 import os
 import mysql.connector  # Importing MySQL connector for database operations
 # Google API imports
@@ -31,6 +31,19 @@ def list_messages(service, max_results=10):
     
     return emails
 
+# Function to get label counts (e.g., Inbox, Starred)
+def get_label_counts(service):
+    label_stats = {} # empty array for label stats
+    labels = service.users().labels().list(userId='me').execute().get('labels', [])
+
+    for label in labels:
+        if label['name'] in ['INBOX', 'STARRED', 'SNOOZED', 'SENT', 'DRAFT']:
+            label_id = label['id']
+            messages = service.users().messages().list(userId='me', labelIds=[label_id], maxResults=500).execute()
+            count = len(messages.get('messages', []))
+            label_stats[label['name']] = count
+
+    return label_stats
 
 def get_db_connection():
     """Establish a connection to the MySQL database."""
@@ -97,38 +110,14 @@ def login_with_google():
         # Save token to database
         save_user_token(email, creds)
 
-        # fetch messages from Gmail
-        messages = list_messages(service)
+        # Get label counts
+        label_counts = get_label_counts(service)
 
-
-        # GUI: Show messages
-        menu_root = tk.Tk()
-        menu_root.title("SwiftMate - Inbox")
-        menu_root.geometry("700x500")
-        menu_root.configure(bg="white")
-
-        title_label = tk.Label(menu_root, text=f"Inbox for {email}", font=("Helvetica", 16, "bold"), bg="white", fg="#333")
-        title_label.pack(pady=(20, 10))
-
-        # Frame for text + scrollbar
-        frame = tk.Frame(menu_root)
-        frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-
-        scrollbar = tk.Scrollbar(frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        text_area = tk.Text(frame, yscrollcommand=scrollbar.set, wrap=tk.WORD, font=("Helvetica", 12))
-        text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=text_area.yview)
-
-        for i, (subject, sender, snippet) in enumerate(messages, start=1):
-            text_area.insert(tk.END, f"{i}. 📩 Subject: {subject}\n")
-            text_area.insert(tk.END, f"   👤 From: {sender}\n")
-            text_area.insert(tk.END, f"   ✏️ Snippet: {snippet}\n\n")
-
-        text_area.config(state=tk.DISABLED)  # Make read-only
-
-        menu_root.mainloop()
+        # Calling the menu module to display the inbox
+        menu.create_main_window(
+            emails=list_messages(service),
+            label_counts=label_counts,
+        )
 
     except Exception as e:
         print(f"❌ Error during Google login: {e}")
