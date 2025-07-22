@@ -6,9 +6,33 @@ from PySide6.QtCore import Qt
 import sys
 import re # For regex operations
 
+
+
+
+# Functions for sidemenu folder_items   
+
+def handle_inbox_click():
+    print("Clicked on Inbox")
+
+def handle_starred_click():
+    print("Clicked on Starred")
+
+def handle_snoozed_click():
+    print("Clicked on Snoozed")
+
+def handle_sent_click():
+    print("Clicked on Sent")
+
+def handle_drafts_click():
+    print("Clicked on Drafts")
+
+def handle_more_click():
+    print("Clicked on More")
+
+
 # GUI of the main window
 def create_main_window(emails, label_counts):
-    app = QApplication(sys.argv)
+    # Big Error, cannot create this, because we have this already in main.py -> app = QApplication(sys.argv) 
     window = QWidget()
     window.setWindowTitle("SwiftMate - Gmail Clone")
     window.resize(1200, 700)
@@ -49,22 +73,42 @@ def create_main_window(emails, label_counts):
 
     # Folder Items (Inbox, Starred, etc.)
     folder_items = [
-    ("📥", "Inbox", str(label_counts.get("INBOX", "")), True),
-    ("⭐", "Starred", str(label_counts.get("STARRED", "")), False),
-    ("⏰", "Snoozed", str(label_counts.get("SNOOZED", "")), False),
-    ("📤", "Sent", str(label_counts.get("SENT", "")), False),
-    ("📝", "Drafts", str(label_counts.get("DRAFT", "")), False),
-    ("▾", "More", "", False),
+    ("📥", "Inbox", str(label_counts.get("INBOX", "")), True, handle_inbox_click),
+    ("⭐", "Starred", str(label_counts.get("STARRED", "")), False, handle_starred_click),
+    ("⏰", "Snoozed", str(label_counts.get("SNOOZED", "")), False, handle_snoozed_click),
+    ("📤", "Sent", str(label_counts.get("SENT", "")), False, handle_sent_click),
+    ("📝", "Drafts", str(label_counts.get("DRAFT", "")), False, handle_drafts_click),
+    ("▾", "More", "", False, handle_more_click),
     ]
 
-    for icon, name, count, is_active in folder_items:
+    for icon, name, count, is_active, click_handler in folder_items:
         row = QHBoxLayout()
-        row.setContentsMargins(12, 6, 12, 6)  # Left margin
+        row.setContentsMargins(12, 6, 12, 6)
         row.setSpacing(2)
 
-        combined_label = QLabel(f"{icon}&nbsp;&nbsp;&nbsp;&nbsp;<b>{name}</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {count if count else ''}")
-        combined_label.setFont(QFont("Helvetica", 12))
-        combined_label.setTextFormat(Qt.RichText)
+        # Button with icon + label
+        folder_btn = QPushButton(f"{icon}  {name}")
+        folder_btn.setFont(QFont("Helvetica", 12))
+        folder_btn.setStyleSheet("""
+            QPushButton {
+                text-align: left;
+                padding: 6px;
+                border: none;
+                background-color: transparent;
+            }
+        """)
+        folder_btn.clicked.connect(click_handler)
+
+        # Count label (centered vertically, nudged to left)
+        count_label = QLabel(count if count else "")
+        count_label.setFont(QFont("Helvetica", 11))
+        count_label.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        count_label.setContentsMargins(0, 0, 8, 0)  # Move slightly left
+        count_label.setFixedWidth(24)
+
+        row.addWidget(folder_btn)
+        row.addStretch()
+        row.addWidget(count_label)
 
         # Highlight background if active
         bg_widget = QWidget()
@@ -80,7 +124,6 @@ def create_main_window(emails, label_counts):
         else:
             bg_widget.setStyleSheet("")
 
-        row.addWidget(combined_label)
         sidebar_layout.addWidget(bg_widget)
 
     # Labels Section
@@ -260,7 +303,7 @@ def create_main_window(emails, label_counts):
 
     window.setLayout(container)
     window.show()
-    sys.exit(app.exec())
+    # Cannot also use this, because it is not the main.py! Same Error as the same above. -> sys.exit(app.exec())
 
 
 # "Only run this block if this file is being run directly, not when it’s being imported from another file." (Its now for me, so thats why there is this comment)
