@@ -1,9 +1,8 @@
 from unicodedata import name
 from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QVBoxLayout,
                                  QHBoxLayout, QLineEdit, QFrame, QListWidget, QListWidgetItem)
-from PySide6.QtGui import QFont, QColor, QPalette
+from PySide6.QtGui import QFont, QColor, QPalette, QPixmap
 from PySide6.QtCore import Qt
-import sys
 import re # For regex operations
 
 
@@ -30,12 +29,15 @@ def handle_more_click():
     print("Clicked on More")
 
 
+_menu_window = None  # Keep a reference to prevent garbage collection
+
 # GUI of the main window
 def create_main_window(emails, label_counts):
+    global _menu_window  # Make sure we keep reference to prevent GC
     # Big Error, cannot create this, because we have this already in main.py -> app = QApplication(sys.argv) 
-    window = QWidget()
-    window.setWindowTitle("SwiftMate - Gmail Clone")
-    window.resize(1200, 700)
+    _menu_window = QWidget()
+    _menu_window.setWindowTitle("SwiftMate - Gmail Client by Tom Musil")
+    _menu_window.resize(1200, 700)
 
     # Fonts
     FONT = QFont("Helvetica", 12)
@@ -48,13 +50,34 @@ def create_main_window(emails, label_counts):
     sidebar_widget.setStyleSheet("background-color: #f6f9ff;")
     sidebar_widget.setFixedWidth(260)
 
-    # Gmail Logo
-    gmail_logo = QLabel("📧 Gmail")
-    gmail_logo.setFont(QFont("Helvetica", 18, QFont.Bold))
-    gmail_logo.setContentsMargins(12, 0, 0, 0)  # left margin
-    sidebar_layout.addWidget(gmail_logo)
-    sidebar_layout.addSpacing(10)
+    # SwiftMate Logo with Image + Text
+    logo_layout = QHBoxLayout()
+    logo_layout.setContentsMargins(12, 0, 0, 0)  # Add some left margin
+    logo_layout.setSpacing(0)
 
+    # Load logo image
+    logo_path = "imgs/SwiftMateLogo.png" 
+    logo_pixmap = QPixmap(logo_path).scaled(48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+    logo_img = QLabel()
+    logo_img.setPixmap(logo_pixmap)
+    logo_img.setFixedSize(48, 48)               # Shrink the QLabel box
+    logo_img.setScaledContents(True)            # Force the pixmap to fill the label
+
+    # Text label
+    logo_text = QLabel("SwiftMate")
+    logo_text.setFont(QFont("Helvetica", 18, QFont.Bold))
+    logo_text.setStyleSheet("color: #1a73e8;")  # Optional: color to match branding
+
+    # Add image and text to layout
+    logo_layout.addWidget(logo_img)
+    logo_layout.addWidget(logo_text)
+
+    # Wrap in a widget
+    logo_widget = QWidget()
+    logo_widget.setLayout(logo_layout)
+    sidebar_layout.addWidget(logo_widget)
+    sidebar_layout.addSpacing(0)
     # Compose Button
     compose_btn = QPushButton("🖊️  Compose")
     compose_btn.setFont(QFont("Helvetica", 12, QFont.Bold))
@@ -69,7 +92,7 @@ def create_main_window(emails, label_counts):
         }
     """)
     sidebar_layout.addWidget(compose_btn)
-    sidebar_layout.addSpacing(10)
+    sidebar_layout.addSpacing(0)
 
     # Folder Items (Inbox, Starred, etc.)
     folder_items = [
@@ -153,7 +176,13 @@ def create_main_window(emails, label_counts):
     search_box = QWidget()
     search_box.setStyleSheet("background-color: #e5f1ff; border-radius: 16px; padding: 0px;")
     search_box.setFixedHeight(32)  # <-- This controls the *visible height*
-    search_box.setFixedWidth(int(window.width() * 0.5)) # <-- This controls the *visible width* 70%
+    search_box.setFixedWidth(int(_menu_window.width() * 0.5)) # <-- This controls the *visible width* 70%
+    search_box.setStyleSheet("""
+        background-color: #e5f1ff;
+        border-radius: 16px;
+        padding: 0px;
+        border: 1px solid green;
+    """)
 
     search_icon = QLabel("🔍")
     search_icon.setStyleSheet("padding: 2px; font-size: 15px; color: #5f6368;")
@@ -236,7 +265,7 @@ def create_main_window(emails, label_counts):
         clean_subject = re.sub(r'<.*?>', '', subject).strip()
 
         row = QHBoxLayout()
-        row.setContentsMargins(8, 2, 8, 2)
+        row.setContentsMargins(8, 0, 8, 0)
         row.setSpacing(6)
 
         # Checkbox and star
@@ -280,16 +309,18 @@ def create_main_window(emails, label_counts):
         row_widget = QWidget()
         row_widget.setLayout(row)
         row_widget.setFixedHeight(30)
-        row_widget.setMaximumWidth(int(window.width() * 0.9))  # 90% width of main window
+        row_widget.setMaximumWidth(int(_menu_window.width() * 0.9))  # 90% width of main window
         row_widget.setStyleSheet("""
             QWidget {
                 margin: 0px;
                 padding: 0px;
+                border: 1px solid red;  /* Debug border */
             }
             QWidget:hover {
                 background-color: #f5f5f5;
             }
-            """)
+        """)
+
 
         main_layout.addWidget(row_widget)
 
@@ -301,8 +332,8 @@ def create_main_window(emails, label_counts):
     main_area_widget.setLayout(main_layout)
     container.addWidget(main_area_widget)
 
-    window.setLayout(container)
-    window.show()
+    _menu_window.setLayout(container)
+    _menu_window.show()
     # Cannot also use this, because it is not the main.py! Same Error as the same above. -> sys.exit(app.exec())
 
 

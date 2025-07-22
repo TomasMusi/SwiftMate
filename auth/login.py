@@ -113,11 +113,10 @@ def login_with_google():
         # Get label counts
         label_counts = get_label_counts(service)
 
-        # Calling the menu module to display the inbox
-        menu.create_main_window(
-            emails=list_messages(service),
-            label_counts=label_counts,
-        )
+        # Returning emails and label counts to main.py 
+        emails = list_messages(service)
+        label_counts = get_label_counts(service)
+        return emails, label_counts
 
     except Exception as e:
         print(f"❌ Error during Google login: {e}")

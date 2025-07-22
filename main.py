@@ -1,17 +1,22 @@
 # Imports
-import tkinter as tk
+from curses import window
 from PIL import Image, ImageTk
+from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QVBoxLayout,
+                                 QHBoxLayout, QLineEdit, QFrame, QListWidget, QListWidgetItem)
+from PySide6.QtGui import QFont, QColor, QPalette, QPixmap, QGuiApplication
+from PySide6.QtCore import Qt
 import auth.login    # Importing the login module
 from dotenv import load_dotenv
+import os
+import sys  # Importing sys for system-specific parameters and functions
 import menu.menu  # Importing the menu module
 
 load_dotenv()  # Load environment variables from .env file
 
 # Function to get half the screen size
-def get_half_screen_size(window):
-    screen_width = window.winfo_screenwidth()
-    screen_height = window.winfo_screenheight()
-    return int(screen_width / 2), int(screen_height / 2)
+def get_half_screen_size():
+    screen = QGuiApplication.primaryScreen().geometry()
+    return screen.width() // 2, screen.height() // 2
 
 # Function to center the window
 def center_window(window, width, height):
@@ -21,77 +26,137 @@ def center_window(window, width, height):
     y = int((screen_height / 2) - (height / 2))
     window.geometry(f"{width}x{height}+{x}+{y}")
 
-# Main window
-root = tk.Tk()
-root.title("SwiftMate - Gmail Client")
-
-# Window size and centering it
-window_width, window_height = get_half_screen_size(root)
-center_window(root, window_width, window_height)
-
-root.configure(bg="white")
-
-# Load and place logo
-logo_path = "imgs/logo.png"  
-try:
-    img = Image.open(logo_path)
-    img = img.resize((100, 100))  # Sizing of the image.
-    logo = ImageTk.PhotoImage(img)
-    logo_label = tk.Label(root, image=logo, bg="white")
-    logo_label.image = logo  # Keep a reference to avoid garbage collection
-    logo_label.pack(pady=(40, 10))
-except Exception as e:
-    print(f"Error loading logo: {e}")
-    logo_label = tk.Label(root, text="Logo not found", bg="white", fg="red")
-    logo_label.pack(pady=(40, 10))
-
-# App Title
-title_label = tk.Label(root, text="SwiftMate", font=("Helvetica", 20, "bold"), bg="white", fg="#333")
-title_label.pack()
-
-# Subtitle
-subtitle_label = tk.Label(root, text="Gmail Client", font=("Helvetica", 14), bg="white", fg="#666")
-subtitle_label.pack(pady=(0, 40))
 
 # Login Button action, when you click this happends.
-def login_action():
+def login_action(window):
     print("Login button clicked!")
-    root.destroy()  # Close the main window
-    auth.login.login_with_google()  # Call the open_menu function from the login module
+    window.close()
 
-def testing_button_action():
+    # Call the login function from auth.login module
+    emails, label_counts = auth.login.login_with_google()
+
+    # If login is successful, create the main window with emails and label counts
+    if emails is not None:
+        menu.menu.create_main_window(emails, label_counts)
+    else:
+        print("Login failed.")
+
+def testing_button_action(window):
     print("Testing button clicked!")
-    root.destroy()  # Close the main window
-    menu.menu.create_main_window()  # Call the open_menu function from the menu module
+    window.close()  # Close the main window
+
+    dummy_emails = [
+        ("Alice", "Meeting Reminder", "Don't forget our meeting at 10am tomorrow."),
+        ("Bob", "Lunch?", "Are you free for lunch this week?"),
+        ("Carol", "Project Update", "Here's the latest update on the project."),
+    ]
+
+    dummy_label_counts = {
+        "INBOX": 3,
+        "STARRED": 1,
+        "SNOOZED": 0,
+        "SENT": 5,
+        "DRAFT": 2
+    }
+
+    menu.menu.create_main_window(dummy_emails, dummy_label_counts)
 
 
-# Login Button
-login_button = tk.Button(
-    root,
-    text="Login",
-    font=("Helvetica", 14),
-    bg="#2a5dab",
-    fg="white",
-    activebackground="#31a1d4",
-    padx=20,
-    pady=10,
-    command=login_action,
-)
-login_button.pack()
+# Main window
 
-# Testing Button
-testing_button = tk.Button(
-    root,
-    text="Testing",
-    font=("Helvetica", 14),
-    bg="#2a5dab",
-    fg="white",
-    activebackground="#31a1d4",
-    padx=20,
-    pady=10,
-    command=testing_button_action,
-)
-testing_button.pack()
 
-# Start GUI
-root.mainloop()
+def MainWindow():
+    """Create the main window for the application."""
+    # Initialize the main window
+    app = QApplication(sys.argv)  # Create a QApplication instance
+
+    window = QWidget()
+    window.setWindowTitle("SwiftMate - Gmail Client")
+    window.resize(*get_half_screen_size())
+
+    layout = QVBoxLayout()
+    layout.setAlignment(Qt.AlignCenter)
+
+    #Logo
+
+    logo_path = "imgs/logo.png"  # Path to the logo image
+    if os.path.exists(logo_path):
+        logo_label = QLabel()
+        pixmap = QPixmap(logo_path).scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        logo_label.setPixmap(pixmap)
+        logo_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(logo_label)
+    else:
+        logo_label = QLabel("Logo not found")
+        logo_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(logo_label)
+
+    # Title
+    title_label = QLabel("SwiftMate")
+    title_label.setFont(QFont("Helvetica", 20, QFont.Bold))
+    title_label.setAlignment(Qt.AlignCenter)
+    layout.addWidget(title_label)
+
+    # Subtitle
+    subtitle_label = QLabel("Gmail Client")
+    subtitle_label.setFont(QFont("Helvetica", 14))
+    subtitle_label.setStyleSheet("color: #333;")  # Set color for subtitle
+    subtitle_label.setAlignment(Qt.AlignCenter)
+    layout.addWidget(subtitle_label)
+
+    layout.addSpacing(20)  # Add some space before buttons
+
+    # Login Button
+    login_button = QPushButton("Login")
+    login_button.setFont(QFont("Helvetica", 14))
+    login_button.setStyleSheet("""
+        QPushButton {
+            background-color: #1a73e8;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        QPushButton:hover {
+            background-color: #4285f4;
+        }
+        QPushButton:pressed {
+            background-color: #1669c1;
+        }
+    """)
+    login_button.clicked.connect(lambda: login_action(window))  # Connect the button to the login action
+
+    layout.addWidget(login_button)
+
+    # Testing Button
+    testing_button = QPushButton("Testing")
+    testing_button.setFont(QFont("Helvetica", 14))
+    testing_button.setStyleSheet("""
+        QPushButton {
+            background-color: #1a73e8;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        QPushButton:hover {
+            background-color: #4285f4;
+        }
+        QPushButton:pressed {
+            background-color: #1669c1;
+        }
+    """)
+    testing_button.clicked.connect(lambda: testing_button_action(window))  # Connect the button to the testing action
+
+    layout.addWidget(testing_button)
+
+    window.setLayout(layout)
+    window.show()
+    sys.exit(app.exec())
+
+if __name__ == "__main__":
+    MainWindow()  # Run the main window function
