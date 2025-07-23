@@ -21,15 +21,30 @@ def list_messages(service, max_results=10):
     messages = results.get('messages', [])
 
     emails = []
+    primary_emails = []
+    social_emails = []
+    promotion_emails = []
+
     for msg in messages:
-        msg_detail = service.users().messages().get(userId='me', id=msg['id']).execute() # Fetching message details
-        headers = msg_detail.get('payload', {}).get('headers', []) # Extracting headers
-        subject = next((h['value'] for h in headers if h['name'] == 'Subject'), "(No Subject)") # Extracting subject
-        sender = next((h['value'] for h in headers if h['name'] == 'From'), "(No Sender)") # Extracting sender
-        snippet = msg_detail.get('snippet', '') # Extracting snippet
-        emails.append((subject, sender, snippet)) # Appending to emails list
-    
-    return emails
+        msg_detail = service.users().messages().get(userId='me', id=msg['id']).execute()
+        headers = msg_detail.get('payload', {}).get('headers', [])
+        label_ids = msg_detail.get('labelIds', [])
+
+        subject = next((h['value'] for h in headers if h['name'] == 'Subject'), "(No Subject)")
+        sender = next((h['value'] for h in headers if h['name'] == 'From'), "(No Sender)")
+        snippet = msg_detail.get('snippet', '')
+
+        email_data = (subject, sender, snippet)
+        emails.append(email_data)
+
+        if 'CATEGORY_PERSONAL' in label_ids:
+            primary_emails.append(email_data)
+        if 'CATEGORY_SOCIAL' in label_ids:
+            social_emails.append(email_data)
+        if 'CATEGORY_PROMOTIONS' in label_ids:
+            promotion_emails.append(email_data)
+
+    return emails, primary_emails, social_emails, promotion_emails
 
 # Function to get label counts (e.g., Inbox, Starred)
 def get_label_counts(service):
@@ -113,10 +128,10 @@ def login_with_google():
         # Get label counts
         label_counts = get_label_counts(service)
 
-        # Returning emails and label counts to main.py 
-        emails = list_messages(service)
+        # Returning emails and label counts to main.py
+        emails, primary_emails, social_emails, promotion_emails = list_messages(service)
         label_counts = get_label_counts(service)
-        return emails, label_counts
+        return emails, primary_emails, social_emails, promotion_emails, label_counts
 
     except Exception as e:
         print(f"❌ Error during Google login: {e}")

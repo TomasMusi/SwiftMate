@@ -6,15 +6,95 @@ from PySide6.QtCore import Qt
 import re # For regex operations
 
 
+# Global variables
+_menu_window = None # Keep a reference to prevent garbage collection
+_main_layout = None
+_emails_container = None
 
+# Global lists to store emails by category
+_all_emails = []
+_starred_emails = []
+_social_emails = []
+_promotion_emails = []
+_primary_emails = []
+
+
+def render_emails(email_list):
+    global _emails_container
+
+    # Clear old email widgets
+    while _emails_container.count():
+        item = _emails_container.takeAt(0)
+        if item.widget():
+            item.widget().deleteLater()
+
+    FONT = QFont("Helvetica", 12)
+    BOLD = QFont("Helvetica", 12, QFont.Bold)
+    SMALL = QFont("Helvetica", 10)
+
+    for sender, subject, snippet in email_list:
+        preview = snippet[:50] + "..." if len(snippet) > 50 else snippet
+        clean_subject = re.sub(r'<.*?>', '', subject).strip()
+
+        row = QHBoxLayout()
+        row.setContentsMargins(8, 0, 8, 0)
+        row.setSpacing(6)
+
+        checkbox = QLabel("☐")
+        checkbox.setFixedWidth(20)
+        star = QLabel("☆")
+        star.setFixedWidth(20)
+        row.addWidget(checkbox)
+        row.addWidget(star)
+
+        subject_label = QLabel(clean_subject)
+        subject_label.setFont(BOLD)
+        subject_label.setStyleSheet("color: #202124")
+        subject_label.setFixedWidth(250)
+        row.addWidget(subject_label)
+
+        sender_label = QLabel(sender)
+        sender_label.setFont(BOLD)
+        sender_label.setFixedWidth(180)
+        row.addWidget(sender_label)
+
+        snippet_label = QLabel(preview)
+        snippet_label.setFont(FONT)
+        snippet_label.setStyleSheet("color: gray")
+        snippet_label.setWordWrap(False)
+        row.addWidget(snippet_label, 1)
+
+        time_label = QLabel("")
+        time_label.setFont(SMALL)
+        time_label.setStyleSheet("color: gray")
+        time_label.setFixedWidth(60)
+        row.addWidget(time_label)
+
+        row_widget = QWidget()
+        row_widget.setLayout(row)
+        row_widget.setFixedHeight(30)
+        row_widget.setMaximumWidth(int(_menu_window.width() * 0.9))
+        row_widget.setStyleSheet("""
+            QWidget {
+                margin: 0px;
+                padding: 0px;
+            }
+            QWidget:hover {
+                background-color: #f5f5f5;
+            }
+        """)
+
+        _emails_container.addWidget(row_widget)
 
 # Functions for sidemenu folder_items   
 
 def handle_inbox_click():
     print("Clicked on Inbox")
+    render_emails(_all_emails)
 
 def handle_starred_click():
     print("Clicked on Starred")
+    render_emails(_primary_emails)
 
 def handle_snoozed_click():
     print("Clicked on Snoozed")
@@ -28,13 +108,19 @@ def handle_drafts_click():
 def handle_more_click():
     print("Clicked on More")
 
-
-_menu_window = None  # Keep a reference to prevent garbage collection
-
 # GUI of the main window
-def create_main_window(emails, label_counts):
-    global _menu_window  # Make sure we keep reference to prevent GC
-    # Big Error, cannot create this, because we have this already in main.py -> app = QApplication(sys.argv) 
+def create_main_window(emails, label_counts, primary_emails, social_emails, promotion_emails):
+    # Make sure we keep reference to prevent GC
+    global _menu_window, _main_layout, _emails_container
+    global _all_emails, _starred_emails, _social_emails, _promotion_emails, _primary_emails
+
+    # Save emails globally
+    _all_emails = emails
+    _primary_emails = primary_emails
+    _social_emails = social_emails
+    _promotion_emails = promotion_emails
+
+    # Big Error, cannot create this, because we have this already in main.py -> app = QApplication(sys.argv)
     _menu_window = QWidget()
     _menu_window.setWindowTitle("SwiftMate - Gmail Client by Tom Musil")
     _menu_window.resize(1200, 700)
@@ -169,8 +255,8 @@ def create_main_window(emails, label_counts):
     sidebar_widget.setLayout(sidebar_layout)
 
     # --- Main Area ---
-    main_layout = QVBoxLayout()
-    main_layout.setSpacing(0)
+    _main_layout = QVBoxLayout()  # This contains search, tabs, and email rows
+    _main_layout.setSpacing(0)
 
     # Search bar
     search_box = QWidget()
@@ -199,7 +285,7 @@ def create_main_window(emails, label_counts):
     search_row.addWidget(search_input, 1)
 
     search_box.setLayout(search_row)
-    main_layout.addWidget(search_box)
+    _main_layout.addWidget(search_box)
 
     # Tabs section
     tabs = QHBoxLayout()
@@ -255,81 +341,19 @@ def create_main_window(emails, label_counts):
     tabs_container = QWidget()
     tabs_container.setLayout(tabs)
     tabs_container.setFixedHeight(40) # <-- Height of the tabs (Primary, Promotions, Social)
-    main_layout.addWidget(tabs_container)
+    _main_layout.addWidget(tabs_container)
+    _emails_container = QVBoxLayout()
+    _main_layout.addLayout(_emails_container)
 
-    for sender, subject, snippet in emails:
-        # Limit snippet length
-        preview = snippet[:50] + "..." if len(snippet) > 50 else snippet
-
-        # Clean up subject for displaying
-        clean_subject = re.sub(r'<.*?>', '', subject).strip()
-
-        row = QHBoxLayout()
-        row.setContentsMargins(8, 0, 8, 0)
-        row.setSpacing(6)
-
-        # Checkbox and star
-        checkbox = QLabel("☐")
-        checkbox.setFixedWidth(20)
-        star = QLabel("☆")
-        star.setFixedWidth(20)
-        row.addWidget(checkbox)
-        row.addWidget(star)
-
-        # Subject (bold) / From who it is
-        subject_label = QLabel(clean_subject)
-        subject_label.setFont(BOLD)
-        subject_label.setStyleSheet("color: #202124")
-        subject_label.setFixedWidth(250)  # Adjust as needed
-        row.addWidget(subject_label)
-
-        # Sender (bold) / About what it is
-        sender_label = QLabel(sender)
-        sender_label.setFont(BOLD)
-        sender_label.setFixedWidth(180)
-        row.addWidget(sender_label)
-
-
-
-        # Snippet (gray)
-        snippet_label = QLabel(preview)
-        snippet_label.setFont(FONT)
-        snippet_label.setStyleSheet("color: gray")
-        snippet_label.setWordWrap(False)
-        row.addWidget(snippet_label, 1)  # Stretch remaining space
-
-        # Optional time placeholder
-        time_label = QLabel("")
-        time_label.setFont(SMALL)
-        time_label.setStyleSheet("color: gray")
-        time_label.setFixedWidth(60)
-        row.addWidget(time_label)
-
-        # Wrap in a QWidget
-        row_widget = QWidget()
-        row_widget.setLayout(row)
-        row_widget.setFixedHeight(30)
-        row_widget.setMaximumWidth(int(_menu_window.width() * 0.9))  # 90% width of main window
-        row_widget.setStyleSheet("""
-            QWidget {
-                margin: 0px;
-                padding: 0px;
-                border: 1px solid red;  /* Debug border */
-            }
-            QWidget:hover {
-                background-color: #f5f5f5;
-            }
-        """)
-
-
-        main_layout.addWidget(row_widget)
+    # Render emails in the main area
+    render_emails(_all_emails)
 
     # --- Combine Sidebar and Main Area ---
     container = QHBoxLayout()
     container.addWidget(sidebar_widget)
 
     main_area_widget = QWidget()
-    main_area_widget.setLayout(main_layout)
+    main_area_widget.setLayout(_main_layout)
     container.addWidget(main_area_widget)
 
     _menu_window.setLayout(container)

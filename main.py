@@ -33,11 +33,18 @@ def login_action(window):
     window.close()
 
     # Call the login function from auth.login module
-    emails, label_counts = auth.login.login_with_google()
-
+    emails, primary_emails, social_emails, promotion_emails, label_counts = auth.login.login_with_google()
+    
     # If login is successful, create the main window with emails and label counts
     if emails is not None:
-        menu.menu.create_main_window(emails, label_counts)
+        if emails is not None:
+            menu.menu.create_main_window(
+                emails=emails,
+                label_counts=label_counts,
+                primary_emails=primary_emails,
+                social_emails=social_emails,
+                promotion_emails=promotion_emails
+            )
     else:
         print("Login failed.")
 
