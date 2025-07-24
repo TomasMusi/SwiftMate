@@ -42,7 +42,7 @@ SwiftMate is built using **PySide6 (Qt for Python)**, offering a smooth, polishe
 
 ## 🖼️ Screenshots
 
-(img)
+<img width="1286" height="735" alt="Screenshot from 2025-07-24 17-19-34" src="https://github.com/user-attachments/assets/305d6cbd-bbbf-4d41-a944-783ceeebc980" />
 
 ---
 
