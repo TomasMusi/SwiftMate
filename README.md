@@ -20,8 +20,8 @@ SwiftMate is built using **PySide6 (Qt for Python)**, offering a smooth, polishe
 | Feature                     | Description                                                                 |
 |---------------------------- |-----------------------------------------------------------------------------|
 | 🖥️  **Modern Qt UI**        | Clean interface with custom themes, layouts, and responsive components     |
-| 📅 **Calendar**             | PINs are stored encrypted and decrypted using a private key on-the-fly     |
-| 🤖 **AI**                   | Form validation with string trimming, matching, and length checks           |
+| 📅 **Calendar**             | Schedule emails or Your Plans     |
+| 🤖 **AI**                   | Uses AI to generate smart replies and auto-sort emails by intent           |
 | 📥 **Smart Inbox Sorting**     | AI organizes your inbox by intent and priority                                |
 | 🌗 **Dark Mode**     | 	Full support for dark/light themes with Qt palettes   |
 
