@@ -107,7 +107,7 @@ Swiftmate/
 ## 🚀 Building Locally
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/SwiftMate.git
+git clone https://github.com/TomasMusi/SwiftMate.git
 cd SwiftMate
 
 # Create virtual environment
@@ -119,7 +119,7 @@ pip install -r requirements.txt
 
 # Configure API keys
 cp .env.example .env
-# Fill in Gmail + Calendar API credentials and OpenAI keys
+# Fill in DB Info
 
 # Run the app
 python app.py
