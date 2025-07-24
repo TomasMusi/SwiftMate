@@ -34,7 +34,11 @@ def list_messages(service, max_results=10):
         sender = next((h['value'] for h in headers if h['name'] == 'From'), "(No Sender)")
         snippet = msg_detail.get('snippet', '')
 
-        email_data = (subject, sender, snippet)
+         # Get the timestamp and format it
+        timestamp = int(msg_detail.get('internalDate', 0)) // 1000
+        date_str = datetime.fromtimestamp(timestamp).strftime("%b %d")  # e.g., "Jul 22"
+
+        email_data = (sender, subject, snippet, date_str)
         emails.append(email_data)
 
         if 'CATEGORY_PERSONAL' in label_ids:

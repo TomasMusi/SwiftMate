@@ -32,7 +32,7 @@ def render_emails(email_list):
     BOLD = QFont("Helvetica", 12, QFont.Bold)
     SMALL = QFont("Helvetica", 10)
 
-    for sender, subject, snippet in email_list:
+    for sender, subject, snippet, date_str in email_list:
         preview = snippet[:50] + "..." if len(snippet) > 50 else snippet
         clean_subject = re.sub(r'<.*?>', '', subject).strip()
 
@@ -64,10 +64,12 @@ def render_emails(email_list):
         snippet_label.setWordWrap(False)
         row.addWidget(snippet_label, 1)
 
-        time_label = QLabel("")
+        # Date label aligned right
+        time_label = QLabel(date_str)
         time_label.setFont(SMALL)
         time_label.setStyleSheet("color: gray")
         time_label.setFixedWidth(60)
+        time_label.setAlignment(Qt.AlignRight | Qt.AlignTop)
         row.addWidget(time_label)
 
         row_widget = QWidget()
@@ -267,7 +269,6 @@ def create_main_window(emails, label_counts, primary_emails, social_emails, prom
         background-color: #e5f1ff;
         border-radius: 16px;
         padding: 0px;
-        border: 1px solid green;
     """)
 
     search_icon = QLabel("🔍")
