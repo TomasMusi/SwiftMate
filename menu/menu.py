@@ -10,6 +10,9 @@ import re # For regex operations
 _menu_window = None # Keep a reference to prevent garbage collection
 _main_layout = None
 _emails_container = None
+_folder_widgets = {}  # Store folder widgets for easy access
+_active_folder = "Inbox"  # Default active folder
+
 
 # Global lists to store emails by category
 _all_emails = []
@@ -88,6 +91,21 @@ def render_emails(email_list):
 
         _emails_container.addWidget(row_widget)
 
+# Function to handle folder clicks and update active folder
+def handle_folder_click(folder_name, handler_func):
+    global _active_folder
+
+    # Reset old active background
+    if _active_folder in _folder_widgets:
+        _folder_widgets[_active_folder].setStyleSheet("")
+
+    # Set new active background
+    if folder_name in _folder_widgets:
+        _folder_widgets[folder_name].setStyleSheet("background-color: #d2e3fc; border-radius: 20px;")
+
+    _active_folder = folder_name
+    handler_func()  # Call the original click handler like handle_starred_click()
+
 # Functions for sidemenu folder_items   
 
 def handle_inbox_click():
@@ -110,11 +128,15 @@ def handle_drafts_click():
 def handle_more_click():
     print("Clicked on More")
 
+
+
+
 # GUI of the main window
 def create_main_window(emails, label_counts, primary_emails, social_emails, promotion_emails, starred_emails):    
     # Make sure we keep reference to prevent GC
     global _menu_window, _main_layout, _emails_container
     global _all_emails, _starred_emails, _social_emails, _promotion_emails, _primary_emails
+
 
     # Save emails globally
     _all_emails = emails
@@ -198,7 +220,6 @@ def create_main_window(emails, label_counts, primary_emails, social_emails, prom
         row.setContentsMargins(12, 6, 12, 6)
         row.setSpacing(2)
 
-        # Button with icon + label
         folder_btn = QPushButton(f"{icon}  {name}")
         folder_btn.setFont(QFont("Helvetica", 12))
         folder_btn.setStyleSheet("""
@@ -209,34 +230,34 @@ def create_main_window(emails, label_counts, primary_emails, social_emails, prom
                 background-color: transparent;
             }
         """)
-        folder_btn.clicked.connect(click_handler)
 
-        # Count label (centered vertically, nudged to left)
         count_label = QLabel(count if count else "")
         count_label.setFont(QFont("Helvetica", 11))
         count_label.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        count_label.setContentsMargins(0, 0, 8, 0)  # Move slightly left
+        count_label.setContentsMargins(0, 0, 8, 0)
         count_label.setFixedWidth(24)
 
         row.addWidget(folder_btn)
         row.addStretch()
         row.addWidget(count_label)
 
-        # Highlight background if active
         bg_widget = QWidget()
         bg_layout = QHBoxLayout(bg_widget)
         bg_layout.setContentsMargins(0, 0, 0, 0)
         bg_layout.addLayout(row)
 
         if is_active:
-            bg_widget.setStyleSheet("""
-                background-color: #d2e3fc;
-                border-radius: 20px;
-            """)
+            bg_widget.setStyleSheet("background-color: #d2e3fc; border-radius: 20px;")
         else:
             bg_widget.setStyleSheet("")
 
         sidebar_layout.addWidget(bg_widget)
+
+        # Store reference to the widget so we can toggle later
+        _folder_widgets[name] = bg_widget
+
+        # Connect button and pass its name
+        folder_btn.clicked.connect(lambda checked, n=name, h=click_handler: handle_folder_click(n, h))
 
     # Labels Section
     sidebar_layout.addSpacing(20)
