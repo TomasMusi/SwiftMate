@@ -33,7 +33,7 @@ def login_action(window):
     window.close()
 
     # Call the login function from auth.login module
-    emails, primary_emails, social_emails, promotion_emails, label_counts = auth.login.login_with_google()
+    emails, primary_emails, social_emails, promotion_emails, label_counts, starred_emails = auth.login.login_with_google()
     
     # If login is successful, create the main window with emails and label counts
     if emails is not None:
@@ -43,31 +43,12 @@ def login_action(window):
                 label_counts=label_counts,
                 primary_emails=primary_emails,
                 social_emails=social_emails,
-                promotion_emails=promotion_emails
+                promotion_emails=promotion_emails,
+                starred_emails=starred_emails
             )
     else:
         print("Login failed.")
-
-def testing_button_action(window):
-    print("Testing button clicked!")
-    window.close()  # Close the main window
-
-    dummy_emails = [
-        ("Alice", "Meeting Reminder", "Don't forget our meeting at 10am tomorrow."),
-        ("Bob", "Lunch?", "Are you free for lunch this week?"),
-        ("Carol", "Project Update", "Here's the latest update on the project."),
-    ]
-
-    dummy_label_counts = {
-        "INBOX": 3,
-        "STARRED": 1,
-        "SNOOZED": 0,
-        "SENT": 5,
-        "DRAFT": 2
-    }
-
-    menu.menu.create_main_window(dummy_emails, dummy_label_counts)
-
+        # If login fails, you can handle it here (e.g., show an error message)
 
 # Main window
 
@@ -136,30 +117,6 @@ def MainWindow():
     login_button.clicked.connect(lambda: login_action(window))  # Connect the button to the login action
 
     layout.addWidget(login_button)
-
-    # Testing Button
-    testing_button = QPushButton("Testing")
-    testing_button.setFont(QFont("Helvetica", 14))
-    testing_button.setStyleSheet("""
-        QPushButton {
-            background-color: #1a73e8;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-        QPushButton:hover {
-            background-color: #4285f4;
-        }
-        QPushButton:pressed {
-            background-color: #1669c1;
-        }
-    """)
-    testing_button.clicked.connect(lambda: testing_button_action(window))  # Connect the button to the testing action
-
-    layout.addWidget(testing_button)
 
     window.setLayout(layout)
     window.show()

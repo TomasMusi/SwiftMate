@@ -96,7 +96,7 @@ def handle_inbox_click():
 
 def handle_starred_click():
     print("Clicked on Starred")
-    render_emails(_primary_emails)
+    render_emails(_starred_emails)
 
 def handle_snoozed_click():
     print("Clicked on Snoozed")
@@ -111,7 +111,7 @@ def handle_more_click():
     print("Clicked on More")
 
 # GUI of the main window
-def create_main_window(emails, label_counts, primary_emails, social_emails, promotion_emails):
+def create_main_window(emails, label_counts, primary_emails, social_emails, promotion_emails, starred_emails):    
     # Make sure we keep reference to prevent GC
     global _menu_window, _main_layout, _emails_container
     global _all_emails, _starred_emails, _social_emails, _promotion_emails, _primary_emails
@@ -121,6 +121,7 @@ def create_main_window(emails, label_counts, primary_emails, social_emails, prom
     _primary_emails = primary_emails
     _social_emails = social_emails
     _promotion_emails = promotion_emails
+    _starred_emails = starred_emails
 
     # Big Error, cannot create this, because we have this already in main.py -> app = QApplication(sys.argv)
     _menu_window = QWidget()
