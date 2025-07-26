@@ -20,6 +20,7 @@ _starred_emails = []
 _social_emails = []
 _promotion_emails = []
 _primary_emails = []
+_sent_emails = []
 
 
 def render_emails(email_list):
@@ -121,6 +122,7 @@ def handle_snoozed_click():
 
 def handle_sent_click():
     print("Clicked on Sent")
+    render_emails(_sent_emails)
 
 def handle_drafts_click():
     print("Clicked on Drafts")
@@ -132,10 +134,10 @@ def handle_more_click():
 
 
 # GUI of the main window
-def create_main_window(emails, label_counts, primary_emails, social_emails, promotion_emails, starred_emails):    
+def create_main_window(emails, label_counts, primary_emails, social_emails, promotion_emails, starred_emails, sent_emails):    
     # Make sure we keep reference to prevent GC
     global _menu_window, _main_layout, _emails_container
-    global _all_emails, _starred_emails, _social_emails, _promotion_emails, _primary_emails
+    global _all_emails, _starred_emails, _social_emails, _promotion_emails, _primary_emails, _sent_emails
 
 
     # Save emails globally
@@ -144,6 +146,7 @@ def create_main_window(emails, label_counts, primary_emails, social_emails, prom
     _social_emails = social_emails
     _promotion_emails = promotion_emails
     _starred_emails = starred_emails
+    _sent_emails = sent_emails
 
     # Big Error, cannot create this, because we have this already in main.py -> app = QApplication(sys.argv)
     _menu_window = QWidget()
@@ -401,4 +404,12 @@ if __name__ == '__main__':
         "DRAFT": 2
     }
 
-    create_main_window(emails, dummy_label_counts)
+    create_main_window(
+    emails,
+    dummy_label_counts,
+    primary_emails=[],
+    social_emails=[],
+    promotion_emails=[],
+    starred_emails=[],
+    sent_emails=[]
+    )   

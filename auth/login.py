@@ -64,6 +64,7 @@ def get_label_counts(service):
 
     return label_stats
 
+# Function to get starred messages
 def get_starred_messages(service, max_results=50):
     """Fetch emails that are labeled as STARRED."""
     results = service.users().messages().list(userId='me', labelIds=['STARRED'], maxResults=max_results).execute()
@@ -83,6 +84,27 @@ def get_starred_messages(service, max_results=50):
         starred_emails.append((sender, subject, snippet, date_str))
 
     return starred_emails
+
+# Function to get sent messages
+def get_sent_messages(service, max_results=50):
+    """Fetch emails that are labeled as SENT."""
+    results = service.users().messages().list(userId='me', labelIds=['SENT'], maxResults=max_results).execute()
+    messages = results.get('messages', [])
+
+    sent_emails = []
+
+    for msg in messages:
+        msg_detail = service.users().messages().get(userId='me', id=msg['id']).execute()
+        headers = msg_detail.get('payload', {}).get('headers', [])
+        subject = next((h['value'] for h in headers if h['name'] == 'Subject'), "(No Subject)")
+        sender = next((h['value'] for h in headers if h['name'] == 'From'), "(No Sender)")
+        snippet = msg_detail.get('snippet', '')
+        timestamp = int(msg_detail.get('internalDate', 0)) // 1000
+        date_str = datetime.fromtimestamp(timestamp).strftime("%b %d")
+
+        sent_emails.append((sender, subject, snippet, date_str))
+
+    return sent_emails
 
 def get_db_connection():
     """Establish a connection to the MySQL database."""
@@ -156,10 +178,13 @@ def login_with_google():
         emails, primary_emails, social_emails, promotion_emails = list_messages(service)
         label_counts = get_label_counts(service)
         starred_emails = get_starred_messages(service)
-        return emails, primary_emails, social_emails, promotion_emails, label_counts, starred_emails
+        sent_emails = get_sent_messages(service)
 
+        # Return all the necessary data
+        return emails, primary_emails, social_emails, promotion_emails, label_counts, starred_emails, sent_emails
+
+    # If login fails, handle the exception
     except Exception as e:
         print(f"❌ Error during Google login: {e}")
-        return
-    
+        return None, None, None, None, None, None, None
 
