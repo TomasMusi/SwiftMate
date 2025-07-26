@@ -1,15 +1,13 @@
 # Imports
-from curses import window
-from PIL import Image, ImageTk
-from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QVBoxLayout,
-                                 QHBoxLayout, QLineEdit, QFrame, QListWidget, QListWidgetItem)
-from PySide6.QtGui import QFont, QColor, QPalette, QPixmap, QGuiApplication
+from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QVBoxLayout,)
+from PySide6.QtGui import QFont, QPixmap, QGuiApplication
 from PySide6.QtCore import Qt
 import auth.login    # Importing the login module
 from dotenv import load_dotenv
 import os
 import sys  # Importing sys for system-specific parameters and functions
-import menu.menu  # Importing the menu module
+import menu.menu as menu_module  # Importing the menu module (Using alias for clarity)
+import threading
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -33,20 +31,15 @@ def login_action(window):
     window.close()
 
     # Call the login function from auth.login module
-    emails, primary_emails, social_emails, promotion_emails, label_counts, starred_emails, sent_emails = auth.login.login_with_google()
-    
+    emails, label_counts, service = auth.login.login_with_google()
+
     # If login is successful, create the main window with emails and label counts
     if emails is not None:
-        if emails is not None:
-            menu.menu.create_main_window(
-                emails=emails,
-                label_counts=label_counts,
-                primary_emails=primary_emails,
-                social_emails=social_emails,
-                promotion_emails=promotion_emails,
-                starred_emails=starred_emails,
-                sent_emails=sent_emails
-            )
+        menu_module._gmail_service=service # Store the service for later use (set global service)
+        menu_module.create_main_window( # Call function directly 
+            emails=emails,
+            label_counts=label_counts,
+        )
     else:
         print("Login failed.")
         # If login fails, you can handle it here (e.g., show an error message)

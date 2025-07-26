@@ -1,9 +1,11 @@
 from unicodedata import name
-from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QVBoxLayout,
-                                 QHBoxLayout, QLineEdit, QFrame, QListWidget, QListWidgetItem)
-from PySide6.QtGui import QFont, QColor, QPalette, QPixmap
+from PySide6.QtWidgets import (QWidget, QLabel, QPushButton, QVBoxLayout,
+                                 QHBoxLayout, QLineEdit, QFrame, )
+from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtCore import Qt
-import re # For regex operations
+import re
+
+from auth.login import get_sent_messages, get_starred_messages # For regex operations
 
 
 # Global variables
@@ -16,11 +18,7 @@ _active_folder = "Inbox"  # Default active folder
 
 # Global lists to store emails by category
 _all_emails = []
-_starred_emails = []
-_social_emails = []
-_promotion_emails = []
-_primary_emails = []
-_sent_emails = []
+_gmail_service = None  # To store the Gmail API service
 
 
 def render_emails(email_list):
@@ -115,14 +113,18 @@ def handle_inbox_click():
 
 def handle_starred_click():
     print("Clicked on Starred")
-    render_emails(_starred_emails)
+    if _gmail_service is not None:
+        starred_emails = get_starred_messages(_gmail_service)
+        render_emails(starred_emails)
 
 def handle_snoozed_click():
     print("Clicked on Snoozed")
 
 def handle_sent_click():
     print("Clicked on Sent")
-    render_emails(_sent_emails)
+    if _gmail_service is not None:
+        sent_messages = get_sent_messages(_gmail_service)
+        render_emails(sent_messages)
 
 def handle_drafts_click():
     print("Clicked on Drafts")
@@ -134,19 +136,15 @@ def handle_more_click():
 
 
 # GUI of the main window
-def create_main_window(emails, label_counts, primary_emails, social_emails, promotion_emails, starred_emails, sent_emails):    
+def create_main_window(emails, label_counts):    
     # Make sure we keep reference to prevent GC
     global _menu_window, _main_layout, _emails_container
-    global _all_emails, _starred_emails, _social_emails, _promotion_emails, _primary_emails, _sent_emails
+    global _all_emails
 
 
     # Save emails globally
     _all_emails = emails
-    _primary_emails = primary_emails
-    _social_emails = social_emails
-    _promotion_emails = promotion_emails
-    _starred_emails = starred_emails
-    _sent_emails = sent_emails
+
 
     # Big Error, cannot create this, because we have this already in main.py -> app = QApplication(sys.argv)
     _menu_window = QWidget()
@@ -385,31 +383,3 @@ def create_main_window(emails, label_counts, primary_emails, social_emails, prom
     _menu_window.setLayout(container)
     _menu_window.show()
     # Cannot also use this, because it is not the main.py! Same Error as the same above. -> sys.exit(app.exec())
-
-
-# "Only run this block if this file is being run directly, not when it’s being imported from another file." (Its now for me, so thats why there is this comment)
-if __name__ == '__main__':
-
-    emails = [
-        ("Alice", "Meeting Reminder", "Don't forget our meeting at 10am tomorrow."),
-        ("Bob", "Lunch?", "Are you free for lunch this week?"),
-        ("Carol", "Project Update", "Here's the latest update on the project. Please review."),
-    ]
-
-    dummy_label_counts = {
-        "INBOX": 3,
-        "STARRED": 1,
-        "SNOOZED": 0,
-        "SENT": 5,
-        "DRAFT": 2
-    }
-
-    create_main_window(
-    emails,
-    dummy_label_counts,
-    primary_emails=[],
-    social_emails=[],
-    promotion_emails=[],
-    starred_emails=[],
-    sent_emails=[]
-    )   

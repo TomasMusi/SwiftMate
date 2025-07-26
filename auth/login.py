@@ -1,15 +1,9 @@
 # Imports 
-import webbrowser # Importing tkinter for GUI
-from PIL import Image, ImageTk
-import menu.menu as menu
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QPushButton
 import os
 import mysql.connector  # Importing MySQL connector for database operations
 # Google API imports
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from google.oauth2.credentials import Credentials
-
 from datetime import datetime
 
 # Google permissions (scopes)
@@ -21,9 +15,6 @@ def list_messages(service, max_results=10):
     messages = results.get('messages', [])
 
     emails = []
-    primary_emails = []
-    social_emails = []
-    promotion_emails = []
 
     for msg in messages:
         msg_detail = service.users().messages().get(userId='me', id=msg['id']).execute()
@@ -41,14 +32,7 @@ def list_messages(service, max_results=10):
         email_data = (sender, subject, snippet, date_str)
         emails.append(email_data)
 
-        if 'CATEGORY_PERSONAL' in label_ids:
-            primary_emails.append(email_data)
-        if 'CATEGORY_SOCIAL' in label_ids:
-            social_emails.append(email_data)
-        if 'CATEGORY_PROMOTIONS' in label_ids:
-            promotion_emails.append(email_data)
-
-    return emails, primary_emails, social_emails, promotion_emails
+    return emails
 
 # Function to get label counts (e.g., Inbox, Starred)
 def get_label_counts(service):
@@ -171,20 +155,15 @@ def login_with_google():
         # Save token to database
         save_user_token(email, creds)
 
-        # Get label counts
-        label_counts = get_label_counts(service)
-
         # Returning emails and label counts to main.py
-        emails, primary_emails, social_emails, promotion_emails = list_messages(service)
+        emails = list_messages(service)
         label_counts = get_label_counts(service)
-        starred_emails = get_starred_messages(service)
-        sent_emails = get_sent_messages(service)
 
-        # Return all the necessary data
-        return emails, primary_emails, social_emails, promotion_emails, label_counts, starred_emails, sent_emails
+        # Return all the necessary data (service, for fetching more emails later)
+        return emails, label_counts, service 
 
     # If login fails, handle the exception
     except Exception as e:
         print(f"❌ Error during Google login: {e}")
-        return None, None, None, None, None, None, None
+        return None, None, None
 
