@@ -1,15 +1,58 @@
 # Imports
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QVBoxLayout,)
 from PySide6.QtGui import QFont, QPixmap, QGuiApplication
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QThread
+from PySide6.QtCore import Qt, QObject, Slot, QThread
 import auth.login    # Importing the login module
 from dotenv import load_dotenv
 import os
 import sys  # Importing sys for system-specific parameters and functions
 import menu.menu as menu_module  # Importing the menu module (Using alias for clarity)
-import threading
+import menu.loading as loading_module  # Importing the loading module
 
 load_dotenv()  # Load environment variables from .env file
+
+# Global variables for preventing garbage collection
+_login_thread = None
+_login_worker = None
+_result_handler = None
+
+# Worker class for threading
+
+""" 
+Analogy for understanding Signal, Emit, Slot
+
+Signal = your raised hand ✋
+(You’re saying something happened)
+
+emit() = the moment you shout the message
+(You send the signal)
+
+Slot = the teacher who hears you 👂
+(And reacts by saying: “Great job!” or checking your homework)
+
+"""
+
+class LoginWorker(QObject): # QObject becomes QT compatible object, you can use signals and slots and move it to threads.
+
+    finished = Signal(list, dict, object)  # Signal to indicate the worker has finished (This has no data, it just says: ,,im finished,,) [its]
+
+    
+    @Slot() # “Hey, the function below is a slot — it can be triggered by a signal or safely run in a thread.”
+    def run(self): # defnies function run that will be executed in the background when the thread starts. 
+        print("🧵 LoginWorker running in thread:", QThread.currentThread())
+        print("LoginWorker started")
+        
+        try:
+            emails, label_counts, service = auth.login.login_with_google()
+        
+        except Exception as e:
+            print("Login failed:", e)
+            emails, label_counts, service = [], {}, None
+        print("✅ Emitting finished signal...")
+        # What is emit? (Imagine you are in school and raise your hand and tell your teacher you are done, thats exactly what emit is for.)
+        self.finished.emit(emails or [], label_counts or {}, service or {})  # emit done signal (always, success or fail) (Also we have to make sure that we handle the errors also, if the login fails send empty data.)
 
 # Function to get half the screen size
 def get_half_screen_size():
@@ -24,25 +67,55 @@ def center_window(window, width, height):
     y = int((screen_height / 2) - (height / 2))
     window.geometry(f"{width}x{height}+{x}+{y}")
 
+class ResultHandler(QObject):
+    @Slot(list, dict, object)
+    def on_finished(self, emails, label_counts, service):
+
+                # Clean up the thread and worker 
+                _login_thread.quit()  # Stop the thread Politely tells the thread: "Please stop running" 
+
+                # These tell Qt to delete these objects later, when it's safe ( prevents memory leaks)
+                _login_worker.deleteLater()  
+                _login_thread.deleteLater() 
+
+                # Close the loading screen
+                loading_module.close_loading_screen()  # Close the loading dialog
+
+                # Open menu window
+                menu_module._gmail_service = service
+                menu_module.create_main_window(emails=emails, label_counts=label_counts).show()
+
+                # Clean up worker and thread after event loop completes
+                _login_worker.deleteLater()
+                _login_thread.quit()
+                _login_thread.wait()  # this is now safe
+                _login_thread.deleteLater()
+
+                print("Login process completed.")
 
 # Login Button action, when you click this happends.
 def login_action(window):
-    print("Login button clicked!")
+    global _login_thread, _login_worker, _result_handler
     window.close()
 
-    # Call the login function from auth.login module
-    emails, label_counts, service = auth.login.login_with_google()
+    loading_module.show_loading_screen()  # Show loading screen (Runs in main thread)
 
-    # If login is successful, create the main window with emails and label counts
-    if emails is not None:
-        menu_module._gmail_service=service # Store the service for later use (set global service)
-        menu_module.create_main_window( # Call function directly 
-            emails=emails,
-            label_counts=label_counts,
-        )
-    else:
-        print("Login failed.")
-        # If login fails, you can handle it here (e.g., show an error message)
+    # Step 1: Create the worker and thread
+    _login_worker = LoginWorker()  # Create an instance of the worker (holds the .run() method which runs the login process)
+    _login_thread = QThread()  # Create a thread for the worker, (this thread is not running yet- it is just created)
+
+    _login_worker.moveToThread(_login_thread)  # Move the worker to the thread (Super important step From now on, any slots (like .run()) on this worker will run inside that thread.) if we wouldnt do that, it would run inside of the main thread, which we dont want  to.
+
+    # step 2: What happends when the login is finished
+    _result_handler = ResultHandler()
+    
+    # Step 3: Connect signals
+    _login_thread.started.connect(_login_worker.run)  # Connect the thread's started signal ( when the thread starts, it will call the worker's run() method)
+    _login_worker.finished.connect(_result_handler.on_finished, Qt.QueuedConnection)  # Connect the worker's finished signal (This function runs in the main thread, so it’s safe to close windows and update GUI)
+
+    # step 4: Start the thread
+    _login_thread.start()  # Start the thread, this will call the run() method 
+
 
 # Main window
 
