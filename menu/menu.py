@@ -1,9 +1,10 @@
 from unicodedata import name
 from PySide6.QtWidgets import (QWidget, QLabel, QPushButton, QVBoxLayout,
-                                 QHBoxLayout, QLineEdit, QFrame, )
+                                 QHBoxLayout, QLineEdit, QFrame, QMessageBox)
 from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtCore import Qt
 import re
+import base64
 
 from auth.login import get_sent_messages, get_starred_messages # For regex operations
 
@@ -20,6 +21,44 @@ _active_folder = "Inbox"  # Default active folder
 _all_emails = []
 _gmail_service = None  # To store the Gmail API service
 
+# Function that shows full message (when message_id is parsed.)
+def show_full_email(message_id):
+    if not _gmail_service:
+        print("No Gmail service available.")
+        return
+
+    try:
+        msg_detail = _gmail_service.users().messages().get(userId='me', id=message_id, format='full').execute()
+        headers = msg_detail.get('payload', {}).get('headers', [])
+
+        subject = next((h['value'] for h in headers if h['name'] == 'Subject'), "(No Subject)")
+        sender = next((h['value'] for h in headers if h['name'] == 'From'), "(No Sender)")
+
+        def extract_body(payload):
+            if "parts" in payload:
+                for part in payload["parts"]:
+                    result = extract_body(part)
+                    if result:
+                        return result
+            else:
+                if payload.get("mimeType") == "text/plain" and "data" in payload.get("body", {}):
+                    data = payload["body"]["data"]
+                    return base64.urlsafe_b64decode(data).decode("utf-8")
+            return None
+
+        body = extract_body(msg_detail.get("payload", {}))
+        if not body:
+            body = "(No plain text body found)"
+
+        # Display in popup
+        full_view = QMessageBox()
+        full_view.setWindowTitle(subject)
+        full_view.setText(f"From: {sender}\n\n{body}")
+        full_view.setStandardButtons(QMessageBox.Ok)
+        full_view.exec()
+
+    except Exception as e:
+        print("❌ Error showing full email:", e)
 
 def render_emails(email_list):
     global _emails_container
@@ -34,7 +73,7 @@ def render_emails(email_list):
     BOLD = QFont("Helvetica", 12, QFont.Bold)
     SMALL = QFont("Helvetica", 10)
 
-    for sender, subject, snippet, date_str in email_list:
+    for msg_id, sender, subject, snippet, date_str in email_list:
         preview = snippet[:50] + "..." if len(snippet) > 50 else snippet
         clean_subject = re.sub(r'<.*?>', '', subject).strip()
 
@@ -77,6 +116,11 @@ def render_emails(email_list):
         row_widget = QWidget()
         row_widget.setLayout(row)
         row_widget.setFixedHeight(30)
+
+
+        # Connect a click to open full view
+        row_widget.mousePressEvent = lambda event, mid=msg_id: show_full_email(mid)
+
         row_widget.setMaximumWidth(int(_menu_window.width() * 0.9))
         row_widget.setStyleSheet("""
             QWidget {

@@ -7,7 +7,7 @@ from googleapiclient.discovery import build
 from datetime import datetime
 
 # Google permissions (scopes)
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES = ["https://mail.google.com/"]
 
 # Function to list messages from Gmail
 def list_messages(service, max_results=10):
@@ -30,6 +30,7 @@ def list_messages(service, max_results=10):
         date_str = datetime.fromtimestamp(timestamp).strftime("%b %d")  # e.g., "Jul 22"
 
         email_data = (sender, subject, snippet, date_str)
+        email_data = (msg['id'], sender, subject, snippet, date_str)
         emails.append(email_data)
 
     return emails
@@ -65,7 +66,8 @@ def get_starred_messages(service, max_results=50):
         timestamp = int(msg_detail.get('internalDate', 0)) // 1000
         date_str = datetime.fromtimestamp(timestamp).strftime("%b %d")
 
-        starred_emails.append((sender, subject, snippet, date_str))
+        # Add MSG ID for future lookup.
+        starred_emails.append((msg['id'], sender, subject, snippet, date_str))
 
     return starred_emails
 
