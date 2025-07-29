@@ -167,27 +167,47 @@ def show_full_email(message_id):
         # Extract attachments
         attachments = extract_attachments(msg_detail["payload"])
         if attachments:
+            attachments_label = QLabel("Attachments")
+            attachments_label.setFont(QFont("Helvetica", 12, QFont.Bold))
+            layout.addWidget(attachments_label)
+
             for attach in attachments:
                 file_size = format_size(attach.get("size", 0))
-                download_btn = QPushButton(f"📎 {attach['filename']} ({file_size})")
-                download_btn.setStyleSheet("padding: 6px;")
-                
-                # Needed to "capture" attach inside loop
+
+                # 📄 Icon
+                icon_label = QLabel("📄")  # You could use an actual image with QPixmap if preferred
+                icon_label.setFont(QFont("Arial", 18))
+                icon_label.setFixedWidth(30)
+
+                # Filename and size
+                file_label = QLabel(f"{attach['filename']} ({file_size})")
+                file_label.setFont(QFont("Helvetica", 11))
+                file_label.setStyleSheet("padding-left: 6px;")
+
+                # Download button
+                download_btn = QPushButton("Download")
+                download_btn.setStyleSheet("""
+                    padding: 4px 12px;
+                    background-color: #1a73e8;
+                    color: white;
+                    border-radius: 12px;
+                """)
+
+                # Function to download file
                 def download_file(attach_data):
                     try:
-                        attach_data = _gmail_service.users().messages().attachments().get(
+                        attach_response = _gmail_service.users().messages().attachments().get(
                             userId="me",
                             messageId=message_id,
                             id=attach_data["attachment_id"]
                         ).execute()
 
-                        file_data = base64.urlsafe_b64decode(attach_data["data"])
+                        file_data = base64.urlsafe_b64decode(attach_response["data"])
 
-                        # Ask user where to save the file
                         save_path, _ = QFileDialog.getSaveFileName(
                             None,
                             "Save Attachment",
-                            attach["filename"]
+                            attach_data["filename"]
                         )
 
                         if save_path:
@@ -196,12 +216,29 @@ def show_full_email(message_id):
                             print(f"✅ Saved to: {save_path}")
                         else:
                             print("⚠️ Save canceled by user.")
-
                     except Exception as e:
-                        print(f"❌ Failed to download {attach['filename']}: {e}")
+                        print(f"❌ Failed to download {attach_data['filename']}: {e}")
 
                 download_btn.clicked.connect(lambda checked=False, a=attach: download_file(a))
-                layout.addWidget(download_btn)
+
+                # Layout for each attachment
+                attach_row = QHBoxLayout()
+                attach_row.addWidget(icon_label)
+                attach_row.addWidget(file_label)
+                attach_row.addStretch()
+                attach_row.addWidget(download_btn)
+
+                attach_widget = QWidget()
+                attach_widget.setLayout(attach_row)
+                attach_widget.setStyleSheet("""
+                    background-color: #f1f3f4;
+                    border: 1px solid #ccc;
+                    border-radius: 10px;
+                    padding: 8px;
+                """)
+
+                layout.addWidget(attach_widget)
+
 
         container = QWidget()
         container.setLayout(layout)
