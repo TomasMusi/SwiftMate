@@ -24,6 +24,39 @@ _gmail_service = None  # To store the Gmail API service
 
 # Function that shows full message (when message_id is parsed.)
 from PySide6.QtWidgets import QTextEdit, QPushButton, QScrollArea
+from PySide6.QtWebEngineWidgets import QWebEngineView
+
+import html
+import re
+
+import html
+import re
+
+def plain_text_to_html_with_links(text):
+    # 1. Escape HTML special characters (&, <, >)
+    text = html.escape(text)
+
+    # 2. Replace labeled links: Label (https://...)
+    def replace_labeled(match):
+        label = match.group(1).strip()
+        url = match.group(2)
+        return f'<a href="{url}">{label}</a>'
+
+    text = re.sub(r'([^\n()]{2,100}?)\s*\((https?://[^\s()]+)\)', replace_labeled, text)
+
+    # 3. Replace raw links like (https://...)
+    def replace_raw(match):
+        url = match.group(1)
+        return f'<a href="{url}">{url}</a>'
+
+    text = re.sub(r'\((https?://[^\s()]+)\)', replace_raw, text)
+
+    # 4. Convert newlines to <br> for HTML formatting
+    text = text.replace('\n', '<br>')
+
+    return text
+
+
 
 def show_full_email(message_id):
     global _emails_container  # We're using this layout to display the email
@@ -48,31 +81,50 @@ def show_full_email(message_id):
 
         # 3. Extract HTML content (fallback to plain text if missing)
         def extract_body(payload):
+            if payload.get("mimeType") == "text/html" and "data" in payload.get("body", {}):
+                data = payload["body"]["data"]
+                return base64.urlsafe_b64decode(data).decode("utf-8")
+
+            if payload.get("mimeType") == "text/plain" and "data" in payload.get("body", {}):
+                data = payload["body"]["data"]
+                return base64.urlsafe_b64decode(data).decode("utf-8")
+
             if "parts" in payload:
                 for part in payload["parts"]:
-                    # Prefer HTML part
-                    if part.get("mimeType") == "text/html" and "data" in part.get("body", {}):
-                        data = part["body"]["data"]
-                        return base64.urlsafe_b64decode(data).decode("utf-8")
-                    # Fall back to plain text
-                    elif part.get("mimeType") == "text/plain" and "data" in part.get("body", {}):
-                        data = part["body"]["data"]
-                        # urlsafe_b64decode converts the gmail safe 64 back to bytes, decode(utf-8) converts bytes to string
-                        return base64.urlsafe_b64decode(data).decode("utf-8")
-                    else:
-                        # If this part has sub-parts, keep searching
-                        result = extract_body(part)
-                        if result:
-                            return result
-            elif payload.get("mimeType") == "text/html" and "data" in payload.get("body", {}):
-                data = payload["body"]["data"]
-                return base64.urlsafe_b64decode(data).decode("utf-8")
-            elif payload.get("mimeType") == "text/plain" and "data" in payload.get("body", {}):
-                data = payload["body"]["data"]
-                return base64.urlsafe_b64decode(data).decode("utf-8")
-            return "(No content found)"            
-                        
-        body = extract_body(msg_detail.get("payload", {}))
+                    result = extract_body(part)
+                    if result:
+                        return result
+
+            return None         
+
+        # Function to extract attachments
+        # This function recursively checks for attachments in nested parts
+        def extract_attachments(payload):
+            attachments = []
+            if "parts" in payload:
+                for part in payload["parts"]:
+                    filename = part.get("filename")
+                    body = part.get("body", {})
+                    attachment_id = body.get("attachmentId")
+                    if filename and attachment_id:
+                        attachments.append({
+                            "filename": filename,
+                            "attachment_id": attachment_id,
+                            "mimeType": part.get("mimeType"),
+                            "part": part,
+                        })
+                    # Recursively check nested parts
+                    attachments.extend(extract_attachments(part))
+            return attachments
+ 
+        
+        # Extract body from the payload
+        body = extract_body(msg_detail.get("payload", {})) or "<i>(No content found)</i>"
+
+        # Convert plain text to HTML if needed
+        if "<html" not in body.lower():
+            body = plain_text_to_html_with_links(body)
+
 
         # 4. Create UI elements
         subject_label = QLabel(subject)
@@ -86,10 +138,10 @@ def show_full_email(message_id):
         date_label.setFont(QFont("Helvetica", 10))
         date_label.setStyleSheet("color: gray")
 
-        body_view = QTextEdit()
-        body_view.setReadOnly(True)
-        body_view.setText(body)
-        body_view.setMinimumHeight(300)
+        body_view = QWebEngineView()
+        print("📤 FINAL BODY HTML (partial preview):\n", body[:500], "...\n")
+        body_view.setHtml(body)
+        body_view.setMinimumHeight(400)
 
         back_btn = QPushButton("← Back to Emails")
         back_btn.setFixedWidth(200)
@@ -104,6 +156,36 @@ def show_full_email(message_id):
         layout.addWidget(sender_label)
         layout.addWidget(date_label)
         layout.addWidget(body_view)
+
+        # Extract attachments
+        attachments = extract_attachments(msg_detail["payload"])
+        if attachments:
+            for attach in attachments:
+                download_btn = QPushButton(f"📎 {attach['filename']} (Click to Download)")
+                download_btn.setStyleSheet("padding: 6px;")
+                
+                # Needed to "capture" attach inside loop
+                def download_file(attach=attach):
+                    try:
+                        attach_data = _gmail_service.users().messages().attachments().get(
+                            userId="me",
+                            messageId=message_id,
+                            id=attach["attachment_id"]
+                        ).execute()
+
+                        file_data = base64.urlsafe_b64decode(attach_data["data"])
+
+                        # Save to file
+                        with open(attach["filename"], "wb") as f:
+                            f.write(file_data)
+
+                        print(f"✅ Downloaded: {attach['filename']}")
+
+                    except Exception as e:
+                        print(f"❌ Failed to download {attach['filename']}: {e}")
+
+                download_btn.clicked.connect(download_file)
+                layout.addWidget(download_btn)
 
         container = QWidget()
         container.setLayout(layout)
