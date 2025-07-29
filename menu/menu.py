@@ -54,6 +54,14 @@ def plain_text_to_html_with_links(text):
 
     return text
 
+# Function to format file sizes (e.g., bytes to KB/MB)
+def format_size(bytes_val):
+    kb = bytes_val / 1024
+    if kb < 1024:
+        return f"{kb:.1f} KB"
+    else:
+        mb = kb / 1024
+        return f"{mb:.1f} MB"
 
 # Function that shows full message (when message_id is parsed.)
 def show_full_email(message_id):
@@ -109,7 +117,8 @@ def show_full_email(message_id):
                             "filename": filename,
                             "attachment_id": attachment_id,
                             "mimeType": part.get("mimeType"),
-                            "part": part,
+                            "size": body.get("size", 0),
+                            "part": part
                         })
                     # Recursively check nested parts
                     attachments.extend(extract_attachments(part))
@@ -159,7 +168,8 @@ def show_full_email(message_id):
         attachments = extract_attachments(msg_detail["payload"])
         if attachments:
             for attach in attachments:
-                download_btn = QPushButton(f"📎 {attach['filename']} (Click to Download)")
+                file_size = format_size(attach.get("size", 0))
+                download_btn = QPushButton(f"📎 {attach['filename']} ({file_size})")
                 download_btn.setStyleSheet("padding: 6px;")
                 
                 # Needed to "capture" attach inside loop
