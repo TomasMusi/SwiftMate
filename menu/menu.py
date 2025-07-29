@@ -1,10 +1,11 @@
 from unicodedata import name
 from PySide6.QtWidgets import (QWidget, QLabel, QPushButton, QVBoxLayout,
-                                 QHBoxLayout, QLineEdit, QFrame, QMessageBox)
+                                 QHBoxLayout, QLineEdit, QFrame)
 from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtCore import Qt
 import re
 import base64
+from datetime import datetime
 
 from auth.login import get_sent_messages, get_starred_messages # For regex operations
 
@@ -22,43 +23,98 @@ _all_emails = []
 _gmail_service = None  # To store the Gmail API service
 
 # Function that shows full message (when message_id is parsed.)
+from PySide6.QtWidgets import QTextEdit, QPushButton, QScrollArea
+
 def show_full_email(message_id):
-    if not _gmail_service:
-        print("No Gmail service available.")
-        return
+    global _emails_container  # We're using this layout to display the email
+
+    # 1. Step Clear the email view layout
+    # Clear previous email list view
+    while _emails_container.count(): # This counts till there are no items in the container
+        item = _emails_container.takeAt(0) # remove the item from the container
+        # If the item has a widget, delete it
+        if item.widget():
+            item.widget().deleteLater()
 
     try:
+
+        # 2. Fetch full message details from Gmail API
         msg_detail = _gmail_service.users().messages().get(userId='me', id=message_id, format='full').execute()
         headers = msg_detail.get('payload', {}).get('headers', [])
-
         subject = next((h['value'] for h in headers if h['name'] == 'Subject'), "(No Subject)")
         sender = next((h['value'] for h in headers if h['name'] == 'From'), "(No Sender)")
+        date_raw = int(msg_detail.get('internalDate', 0)) // 1000
+        date_str = datetime.fromtimestamp(date_raw).strftime("%b %d, %Y %H:%M")
 
+        # 3. Extract HTML content (fallback to plain text if missing)
         def extract_body(payload):
             if "parts" in payload:
                 for part in payload["parts"]:
-                    result = extract_body(part)
-                    if result:
-                        return result
-            else:
-                if payload.get("mimeType") == "text/plain" and "data" in payload.get("body", {}):
-                    data = payload["body"]["data"]
-                    return base64.urlsafe_b64decode(data).decode("utf-8")
-            return None
-
+                    # Prefer HTML part
+                    if part.get("mimeType") == "text/html" and "data" in part.get("body", {}):
+                        data = part["body"]["data"]
+                        return base64.urlsafe_b64decode(data).decode("utf-8")
+                    # Fall back to plain text
+                    elif part.get("mimeType") == "text/plain" and "data" in part.get("body", {}):
+                        data = part["body"]["data"]
+                        # urlsafe_b64decode converts the gmail safe 64 back to bytes, decode(utf-8) converts bytes to string
+                        return base64.urlsafe_b64decode(data).decode("utf-8")
+                    else:
+                        # If this part has sub-parts, keep searching
+                        result = extract_body(part)
+                        if result:
+                            return result
+            elif payload.get("mimeType") == "text/html" and "data" in payload.get("body", {}):
+                data = payload["body"]["data"]
+                return base64.urlsafe_b64decode(data).decode("utf-8")
+            elif payload.get("mimeType") == "text/plain" and "data" in payload.get("body", {}):
+                data = payload["body"]["data"]
+                return base64.urlsafe_b64decode(data).decode("utf-8")
+            return "(No content found)"            
+                        
         body = extract_body(msg_detail.get("payload", {}))
-        if not body:
-            body = "(No plain text body found)"
 
-        # Display in popup
-        full_view = QMessageBox()
-        full_view.setWindowTitle(subject)
-        full_view.setText(f"From: {sender}\n\n{body}")
-        full_view.setStandardButtons(QMessageBox.Ok)
-        full_view.exec()
+        # 4. Create UI elements
+        subject_label = QLabel(subject)
+        subject_label.setFont(QFont("Helvetica", 16, QFont.Bold))
+
+        sender_label = QLabel(f"From: {sender}")
+        sender_label.setFont(QFont("Helvetica", 12))
+        sender_label.setStyleSheet("color: gray")
+
+        date_label = QLabel(date_str)
+        date_label.setFont(QFont("Helvetica", 10))
+        date_label.setStyleSheet("color: gray")
+
+        body_view = QTextEdit()
+        body_view.setReadOnly(True)
+        body_view.setText(body)
+        body_view.setMinimumHeight(300)
+
+        back_btn = QPushButton("← Back to Emails")
+        back_btn.setFixedWidth(200)
+        back_btn.setStyleSheet("padding: 8px; font-weight: bold;")
+        back_btn.clicked.connect(return_to_email_list)  # go back to inbox
+
+        # 5. Put Everything into Layout
+        layout = QVBoxLayout()
+        layout.setSpacing(12)
+        layout.addWidget(back_btn)
+        layout.addWidget(subject_label)
+        layout.addWidget(sender_label)
+        layout.addWidget(date_label)
+        layout.addWidget(body_view)
+
+        container = QWidget()
+        container.setLayout(layout)
+        _emails_container.addWidget(container)
 
     except Exception as e:
         print("❌ Error showing full email:", e)
+
+
+def return_to_email_list():
+    render_emails(_all_emails)
 
 def render_emails(email_list):
     global _emails_container
