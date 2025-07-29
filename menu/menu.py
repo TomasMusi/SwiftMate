@@ -6,7 +6,13 @@ from PySide6.QtCore import Qt
 import re
 import base64
 from datetime import datetime
-
+from PySide6.QtWidgets import QFileDialog
+from PySide6.QtWidgets import QTextEdit, QPushButton, QScrollArea
+from PySide6.QtWebEngineWidgets import QWebEngineView
+import html
+import re
+import html
+import re
 from auth.login import get_sent_messages, get_starred_messages # For regex operations
 
 
@@ -22,19 +28,11 @@ _active_folder = "Inbox"  # Default active folder
 _all_emails = []
 _gmail_service = None  # To store the Gmail API service
 
-# Function that shows full message (when message_id is parsed.)
-from PySide6.QtWidgets import QTextEdit, QPushButton, QScrollArea
-from PySide6.QtWebEngineWidgets import QWebEngineView
 
-import html
-import re
-
-import html
-import re
-
+# Regex function to convert plain text links to HTML hyperlinks
 def plain_text_to_html_with_links(text):
     # 1. Escape HTML special characters (&, <, >)
-    text = html.escape(text)
+    text = html.escape(text) 
 
     # 2. Replace labeled links: Label (https://...)
     def replace_labeled(match):
@@ -57,7 +55,7 @@ def plain_text_to_html_with_links(text):
     return text
 
 
-
+# Function that shows full message (when message_id is parsed.)
 def show_full_email(message_id):
     global _emails_container  # We're using this layout to display the email
 
@@ -165,26 +163,34 @@ def show_full_email(message_id):
                 download_btn.setStyleSheet("padding: 6px;")
                 
                 # Needed to "capture" attach inside loop
-                def download_file(attach=attach):
+                def download_file(attach_data):
                     try:
                         attach_data = _gmail_service.users().messages().attachments().get(
                             userId="me",
                             messageId=message_id,
-                            id=attach["attachment_id"]
+                            id=attach_data["attachment_id"]
                         ).execute()
 
                         file_data = base64.urlsafe_b64decode(attach_data["data"])
 
-                        # Save to file
-                        with open(attach["filename"], "wb") as f:
-                            f.write(file_data)
+                        # Ask user where to save the file
+                        save_path, _ = QFileDialog.getSaveFileName(
+                            None,
+                            "Save Attachment",
+                            attach["filename"]
+                        )
 
-                        print(f"✅ Downloaded: {attach['filename']}")
+                        if save_path:
+                            with open(save_path, "wb") as f:
+                                f.write(file_data)
+                            print(f"✅ Saved to: {save_path}")
+                        else:
+                            print("⚠️ Save canceled by user.")
 
                     except Exception as e:
                         print(f"❌ Failed to download {attach['filename']}: {e}")
 
-                download_btn.clicked.connect(download_file)
+                download_btn.clicked.connect(lambda checked=False, a=attach: download_file(a))
                 layout.addWidget(download_btn)
 
         container = QWidget()
