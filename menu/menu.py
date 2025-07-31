@@ -16,13 +16,19 @@ import re
 from auth.login import get_sent_messages, get_starred_messages # For regex operations
 
 
+
+
+
+
+
 # Global variables
 _menu_window = None # Keep a reference to prevent garbage collection
 _main_layout = None
 _emails_container = None
 _folder_widgets = {}  # Store folder widgets for easy access
 _active_folder = "Inbox"  # Default active folder
-
+_search_box = None  # Reference to the search box widget
+_tabs_container = None  # Reference to the tabs container widget
 
 # Global lists to store emails by category
 _all_emails = []
@@ -66,6 +72,11 @@ def format_size(bytes_val):
 # Function that shows full message (when message_id is parsed.)
 def show_full_email(message_id):
     global _emails_container  # We're using this layout to display the email
+
+    if _search_box:
+        _search_box.hide()
+    if _tabs_container:
+        _tabs_container.hide()
 
     # 1. Step Clear the email view layout
     # Clear previous email list view
@@ -175,7 +186,7 @@ def show_full_email(message_id):
                 file_size = format_size(attach.get("size", 0))
 
                 # 📄 Icon
-                icon_label = QLabel("📄")  # You could use an actual image with QPixmap if preferred
+                icon_label = QLabel("📄")  
                 icon_label.setFont(QFont("Arial", 18))
                 icon_label.setFixedWidth(30)
 
@@ -249,6 +260,12 @@ def show_full_email(message_id):
 
 
 def return_to_email_list():
+
+    if _search_box:
+        _search_box.show()
+    if _tabs_container:
+        _tabs_container.show()
+
     render_emails(_all_emails)
 
 def render_emails(email_list):
@@ -375,6 +392,7 @@ def create_main_window(emails, label_counts):
     # Make sure we keep reference to prevent GC
     global _menu_window, _main_layout, _emails_container
     global _all_emails
+    global _search_box, _tabs_container
 
 
     # Save emails globally
@@ -519,11 +537,11 @@ def create_main_window(emails, label_counts):
     _main_layout.setSpacing(0)
 
     # Search bar
-    search_box = QWidget()
-    search_box.setStyleSheet("background-color: #e5f1ff; border-radius: 16px; padding: 0px;")
-    search_box.setFixedHeight(32)  # <-- This controls the *visible height*
-    search_box.setFixedWidth(int(_menu_window.width() * 0.5)) # <-- This controls the *visible width* 70%
-    search_box.setStyleSheet("""
+    _search_box = QWidget()
+    _search_box.setStyleSheet("background-color: #e5f1ff; border-radius: 16px; padding: 0px;")
+    _search_box.setFixedHeight(32)  # <-- This controls the *visible height*
+    _search_box.setFixedWidth(int(_menu_window.width() * 0.5)) # <-- This controls the *visible width* 70%
+    _search_box.setStyleSheet("""
         background-color: #e5f1ff;
         border-radius: 16px;
         padding: 0px;
@@ -543,8 +561,8 @@ def create_main_window(emails, label_counts):
     search_row.addWidget(search_icon)
     search_row.addWidget(search_input, 1)
 
-    search_box.setLayout(search_row)
-    _main_layout.addWidget(search_box)
+    _search_box.setLayout(search_row)
+    _main_layout.addWidget(_search_box)
 
     # Tabs section
     tabs = QHBoxLayout()
@@ -594,13 +612,18 @@ def create_main_window(emails, label_counts):
         tabs.addWidget(tab_widget)
         tabs.setSpacing(0)  # No spacing between tabs
 
+    # Create tabs with icons and names
     create_tab("Primary", "\U0001F4C2", active=True)
     create_tab("Promotions", "\U0001F4DC", badge_text="5 new")
     create_tab("Social", "\U0001F465", badge_text="3 new")
-    tabs_container = QWidget()
-    tabs_container.setLayout(tabs)
-    tabs_container.setFixedHeight(40) # <-- Height of the tabs (Primary, Promotions, Social)
-    _main_layout.addWidget(tabs_container)
+    
+    # Tabs Container
+    _tabs_container = QWidget()
+    _tabs_container.setLayout(tabs)
+    _tabs_container.setFixedHeight(40) # <-- Height of the tabs (Primary, Promotions, Social)
+    _main_layout.addWidget(_tabs_container)
+
+
     _emails_container = QVBoxLayout()
     _main_layout.addLayout(_emails_container)
 
